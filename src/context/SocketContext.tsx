@@ -38,7 +38,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (user) {
-      const newSocket = io("http://localhost:3001");
+      const socketUrl = import.meta.env.VITE_API_URL
+        ? import.meta.env.VITE_API_URL.replace("/api", "")
+        : "http://localhost:3001";
+      const newSocket = io(socketUrl);
       setSocket(newSocket);
 
       newSocket.on("get-online-users", (users: string[]) => {

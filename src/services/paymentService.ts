@@ -53,13 +53,14 @@ export const paymentService = {
     return response.data;
   },
   searchUsers: async (query: string) => {
-    const response = await api.get<any[]>("/users/search", {
+    const response = await api.get<import("../types").User[]>("/users/search", {
       params: { query },
     });
     return response.data;
   },
   getConnections: async () => {
-    const response = await api.get<any[]>("/users/connections");
+    const response =
+      await api.get<import("../types").User[]>("/users/connections");
     return response.data;
   },
 };

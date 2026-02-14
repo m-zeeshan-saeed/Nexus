@@ -11,6 +11,7 @@ export interface User {
   location?: string;
   isOnline?: boolean;
   walletBalance?: number;
+  isTwoFactorEnabled?: boolean;
   createdAt: string;
 
   // Entrepreneur fields
@@ -180,7 +181,11 @@ export interface Transaction {
 
 export interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, role: UserRole) => Promise<void>;
+  login: (
+    email: string,
+    password: string,
+    role: UserRole,
+  ) => Promise<{ requires2FA?: boolean; tempToken?: string } | void>;
   register: (
     name: string,
     email: string,
@@ -195,6 +200,10 @@ export interface AuthContextType {
     currentPassword: string,
     newPassword: string,
   ) => Promise<void>;
+  setup2FA: () => Promise<void>;
+  enable2FA: (otp: string) => Promise<void>;
+  disable2FA: () => Promise<void>;
+  validate2FALogin: (tempToken: string, otp: string) => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
 }

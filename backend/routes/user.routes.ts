@@ -1,95 +1,156 @@
-import express from "express";
+import express, { Response } from "express";
 import User from "../models/User.model";
 import CollaborationRequest from "../models/CollaborationRequest.model";
 import { authenticateToken, AuthRequest } from "../middlewares/auth.middleware";
+import {
+  profileUpdateSchema,
+  changePasswordSchema,
+  validateRequest,
+} from "../middlewares/validation.middleware";
 import bcrypt from "bcryptjs";
 
 const router = express.Router();
 
+/**
+ * @openapi
+ * /users/profile:
+ *   get:
+ *     summary: Get current user profile
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile details
+ *       401:
+ *         description: Unauthorized
+ */
 // Get current user profile
-router.get("/profile", authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const user = await User.findOne({ id: req.user?.userId }).select(
-      "-password",
-    );
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+router.get(
+  "/profile",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const user = await User.findOne({ id: req.user?.userId }).select(
+        "-password",
+      );
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error("Fetch profile error:", error);
+      res.status(500).json({ message: "Server error" });
     }
-    res.json(user);
-  } catch (error) {
-    console.error("Fetch profile error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+  },
+);
 
+/**
+ * @openapi
+ * /users/search:
+ *   get:
+ *     summary: Search users by name, email, or ID
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of users matching query
+ */
 // Search users by name, email, or ID
-router.get("/search", authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const { query } = req.query;
-    if (!query || typeof query !== "string") {
-      return res.status(400).json({ message: "Search query is required" });
+router.get(
+  "/search",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { query } = req.query;
+      if (!query || typeof query !== "string") {
+        return res.status(400).json({ message: "Search query is required" });
+      }
+
+      // Search for users by direct ID match or case-insensitive name/email match
+      // Filter out the current user from results
+      const users = await User.find({
+        $and: [
+          { id: { $ne: req.user?.userId } },
+          {
+            $or: [
+              { id: query },
+              { name: { $regex: query, $options: "i" } },
+              { email: { $regex: query, $options: "i" } },
+            ],
+          },
+        ],
+      })
+        .select("id name email role")
+        .limit(10);
+
+      res.json(users);
+    } catch (error) {
+      console.error("User search error:", error);
+      res.status(500).json({ message: "Server error" });
     }
+  },
+);
 
-    // Search for users by direct ID match or case-insensitive name/email match
-    // Filter out the current user from results
-    const users = await User.find({
-      $and: [
-        { id: { $ne: req.user?.userId } },
-        {
-          $or: [
-            { id: query },
-            { name: { $regex: query, $options: "i" } },
-            { email: { $regex: query, $options: "i" } },
-          ],
-        },
-      ],
-    })
-      .select("id name email role")
-      .limit(10);
-
-    res.json(users);
-  } catch (error) {
-    console.error("User search error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
+/**
+ * @openapi
+ * /users/connections:
+ *   get:
+ *     summary: Get connected users (accepted collaborations)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of connected users
+ */
 // Get connected users (accepted collaborations)
-router.get("/connections", authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const { userId } = req.user!;
-    console.log("[DEBUG] /connections - fetching for user:", userId);
+router.get(
+  "/connections",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { userId } = req.user!;
+      console.log("[DEBUG] /connections - fetching for user:", userId);
 
-    const acceptedRequests = await CollaborationRequest.find({
-      status: "accepted",
-      $or: [{ investorId: userId }, { entrepreneurId: userId }],
-    });
+      const acceptedRequests = await CollaborationRequest.find({
+        status: "accepted",
+        $or: [{ investorId: userId }, { entrepreneurId: userId }],
+      });
 
-    console.log(
-      "[DEBUG] /connections - accepted requests count:",
-      acceptedRequests.length,
-    );
+      console.log(
+        "[DEBUG] /connections - accepted requests count:",
+        acceptedRequests.length,
+      );
 
-    const partnerIds = acceptedRequests.map((req: any) =>
-      req.investorId === userId ? req.entrepreneurId : req.investorId,
-    );
+      const partnerIds = acceptedRequests.map((req) =>
+        req.investorId === userId ? req.entrepreneurId : req.investorId,
+      );
 
-    console.log("[DEBUG] /connections - unique partner IDs:", [
-      ...new Set(partnerIds),
-    ]);
+      console.log("[DEBUG] /connections - unique partner IDs:", [
+        ...new Set(partnerIds),
+      ]);
 
-    const connections = await User.find({ id: { $in: partnerIds } })
-      .select("id name email role avatarUrl startupName industry")
-      .lean();
+      const connections = await User.find({ id: { $in: partnerIds } })
+        .select("id name email role avatarUrl startupName industry")
+        .lean();
 
-    console.log("[DEBUG] /connections - users found:", connections.length);
+      console.log("[DEBUG] /connections - users found:", connections.length);
 
-    res.json(connections);
-  } catch (error) {
-    console.error("Fetch connections error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+      res.json(connections);
+    } catch (error) {
+      console.error("Fetch connections error:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  },
+);
 
 // Get user profile by ID
 router.get("/:id", authenticateToken, async (req, res) => {
@@ -106,38 +167,46 @@ router.get("/:id", authenticateToken, async (req, res) => {
 });
 
 // Update user profile
-router.put("/profile", authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const updates = req.body;
+router.put(
+  "/profile",
+  authenticateToken,
+  profileUpdateSchema,
+  validateRequest,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const updates = req.body;
 
-    // Prevent sensitive fields from being updated directly here
-    delete updates.password;
-    delete updates.email;
-    delete updates.id;
-    delete updates.role;
+      // Prevent sensitive fields from being updated directly here
+      delete updates.password;
+      delete updates.email;
+      delete updates.id;
+      delete updates.role;
 
-    const user = await User.findOneAndUpdate(
-      { id: req.user?.userId },
-      { $set: updates },
-      { new: true },
-    ).select("-password");
+      const user = await User.findOneAndUpdate(
+        { id: req.user?.userId },
+        { $set: updates },
+        { new: true },
+      ).select("-password");
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error("Update profile error:", error);
+      res.status(500).json({ message: "Server error" });
     }
-
-    res.json(user);
-  } catch (error) {
-    console.error("Update profile error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+  },
+);
 
 // Change password
 router.put(
   "/change-password",
   authenticateToken,
-  async (req: AuthRequest, res) => {
+  changePasswordSchema,
+  validateRequest,
+  async (req: AuthRequest, res: Response) => {
     try {
       const { currentPassword, newPassword } = req.body;
       const userId = req.user?.userId;

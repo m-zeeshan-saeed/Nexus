@@ -17,6 +17,9 @@ export interface IUserDocument extends Omit<User, "id">, Document {
   totalInvestments?: number;
   minimumInvestment?: string;
   maximumInvestment?: string;
+  twoFactorSecret?: string;
+  twoFactorRecoveryCodes?: string[];
+  isTwoFactorEnabled: boolean;
   walletBalance: number;
 }
 
@@ -49,6 +52,11 @@ const UserSchema: Schema = new Schema(
     minimumInvestment: { type: String },
     maximumInvestment: { type: String },
     walletBalance: { type: Number, default: 0 },
+
+    // 2FA fields
+    isTwoFactorEnabled: { type: Boolean, default: false },
+    twoFactorSecret: { type: String },
+    twoFactorRecoveryCodes: [{ type: String }],
   },
   {
     timestamps: false, // Using custom createdAt from mock data

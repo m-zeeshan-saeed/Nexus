@@ -145,9 +145,23 @@ export const EntrepreneurProfile: React.FC = () => {
         requestsRes.data.length,
       );
       setCollaborationRequests(requestsRes.data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[DEBUG] Collaboration request failed:", error);
-      const message = error.response?.data?.message || "Failed to send request";
+      let message = "Failed to send request";
+      if (
+        error &&
+        typeof error === "object" &&
+        "response" in error &&
+        error.response &&
+        typeof error.response === "object" &&
+        "data" in error.response &&
+        error.response.data &&
+        typeof error.response.data === "object" &&
+        "message" in error.response.data &&
+        typeof error.response.data.message === "string"
+      ) {
+        message = error.response.data.message;
+      }
       toast.error(message);
     }
   };

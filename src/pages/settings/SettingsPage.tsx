@@ -51,6 +51,12 @@ export const SettingsPage: React.FC = () => {
     user?.maximumInvestment || "",
   );
 
+  // 2FA state
+  const { setup2FA, enable2FA, disable2FA } = useAuth();
+  const [is2FALoading, setIs2FALoading] = useState(false);
+  const [show2FAVerify, setShow2FAVerify] = useState(false);
+  const [twoFactorOtp, setTwoFactorOtp] = useState("");
+
   if (!user) return null;
 
   const handleUpdateProfile = async () => {
@@ -114,15 +120,65 @@ export const SettingsPage: React.FC = () => {
     }
 
     setIsChangingPassword(true);
+    console.log("[DEBUG] Changing password for user:", user.id);
     try {
       await changePassword(currentPassword, newPassword);
+      console.log("[DEBUG] Password change successful");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch {
+    } catch (error) {
+      console.error("[DEBUG] Password change failed:", error);
       // Error handled by context
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleSetup2FA = async () => {
+    setIs2FALoading(true);
+    try {
+      await setup2FA();
+      setShow2FAVerify(true);
+    } catch {
+      // Error handled by context
+    } finally {
+      setIs2FALoading(false);
+    }
+  };
+
+  const handleVerify2FA = async () => {
+    if (!twoFactorOtp) {
+      toast.error("Please enter the verification code");
+      return;
+    }
+    setIs2FALoading(true);
+    try {
+      await enable2FA(twoFactorOtp);
+      setShow2FAVerify(false);
+      setTwoFactorOtp("");
+    } catch {
+      // Error handled by context
+    } finally {
+      setIs2FALoading(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to disable two-factor authentication?",
+      )
+    ) {
+      return;
+    }
+    setIs2FALoading(true);
+    try {
+      await disable2FA();
+    } catch {
+      // Error handled by context
+    } finally {
+      setIs2FALoading(false);
     }
   };
 
@@ -416,18 +472,83 @@ export const SettingsPage: React.FC = () => {
                   <h3 className="text-sm font-medium text-gray-900 mb-4">
                     Two-Factor Authentication
                   </h3>
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="text-sm text-gray-600">
-                        Add an extra layer of security to your account
-                      </p>
-                      <Badge variant="error" className="mt-1">
-                        Not Enabled
-                      </Badge>
+                  <div className="flex flex-col space-y-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">
+                          Add an extra layer of security to your account
+                        </p>
+                        <Badge
+                          variant={
+                            user.isTwoFactorEnabled ? "success" : "error"
+                          }
+                          className="mt-1"
+                        >
+                          {user.isTwoFactorEnabled ? "Enabled" : "Not Enabled"}
+                        </Badge>
+                      </div>
+                      {user.isTwoFactorEnabled ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDisable2FA}
+                          isLoading={is2FALoading}
+                        >
+                          Disable
+                        </Button>
+                      ) : !show2FAVerify ? (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={handleSetup2FA}
+                          isLoading={is2FALoading}
+                        >
+                          Enable
+                        </Button>
+                      ) : null}
                     </div>
-                    <Button variant="outline" size="sm">
-                      Enable
-                    </Button>
+
+                    {show2FAVerify && !user.isTwoFactorEnabled && (
+                      <div className="pt-4 border-t border-gray-200 animate-slide-up">
+                        <p className="text-sm font-medium text-gray-900 mb-2">
+                          Verify Social Email OTP
+                        </p>
+                        <p className="text-xs text-gray-500 mb-4">
+                          We've sent a 6-digit code to{" "}
+                          <strong>{user.email}</strong>. Please enter it below
+                          to complete the setup.
+                        </p>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 w-full max-w-lg">
+                          <div className="flex-1 w-full sm:w-auto">
+                            <Input
+                              placeholder="000000"
+                              value={twoFactorOtp}
+                              onChange={(e) => setTwoFactorOtp(e.target.value)}
+                              maxLength={6}
+                              className="w-full sm:w-32 text-center tracking-[0.5em] font-mono text-xl"
+                            />
+                          </div>
+                          <div className="flex gap-2 w-full sm:w-auto">
+                            <Button
+                              size="sm"
+                              onClick={handleVerify2FA}
+                              isLoading={is2FALoading}
+                              className="flex-1 sm:flex-none"
+                            >
+                              Verify & Enable
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShow2FAVerify(false)}
+                              className="flex-1 sm:flex-none"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardBody>

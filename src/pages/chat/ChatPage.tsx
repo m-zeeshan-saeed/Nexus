@@ -80,7 +80,7 @@ export const ChatPage: React.FC = () => {
     if (socket && currentUser) {
       socket.on(
         "offer",
-        (data: { from: string; offer: any; roomId: string }) => {
+        (data: { from: string; offer: unknown; roomId: string }) => {
           setIncomingCall({
             roomId: data.roomId,
             fromName: chatPartner?.name || "Incoming Call",
@@ -92,7 +92,7 @@ export const ChatPage: React.FC = () => {
         socket.off("offer");
       };
     }
-  }, [socket, currentUser, userId]);
+  }, [socket, currentUser, userId, chatPartner?.name]);
   useEffect(() => {
     // Scroll to bottom of messages
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

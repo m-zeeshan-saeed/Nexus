@@ -174,7 +174,9 @@ export const TransferModal: React.FC<
   const [amount, setAmount] = useState("");
   const [recipientId, setRecipientId] = useState("");
   const [description, setDescription] = useState("");
-  const [connections, setConnections] = useState<any[]>([]);
+  const [connections, setConnections] = useState<import("../../types").User[]>(
+    [],
+  );
   const [isFetchingConnections, setIsFetchingConnections] = useState(false);
 
   useEffect(() => {

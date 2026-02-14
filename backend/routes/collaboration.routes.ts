@@ -1,8 +1,12 @@
-import express from "express";
+import express, { Response } from "express";
 import CollaborationRequest from "../models/CollaborationRequest.model";
 import User from "../models/User.model";
 import Notification from "../models/Notification.model";
 import { authenticateToken, AuthRequest } from "../middlewares/auth.middleware";
+import {
+  collaborationSchema,
+  validateRequest,
+} from "../middlewares/validation.middleware";
 
 const router = express.Router();
 
@@ -26,7 +30,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res) => {
 
     // Fetch user details for each request
     const populatedRequests = await Promise.all(
-      requests.map(async (request: any) => {
+      requests.map(async (request) => {
         const partnerId =
           role === "entrepreneur" ? request.investorId : request.entrepreneurId;
         const partner = await User.findOne({ id: partnerId })
@@ -47,60 +51,66 @@ router.get("/", authenticateToken, async (req: AuthRequest, res) => {
 });
 
 // Create a new request
-router.post("/", authenticateToken, async (req: AuthRequest, res) => {
-  try {
-    const { entrepreneurId, message } = req.body;
-    const { userId: investorId } = req.user!;
+router.post(
+  "/",
+  authenticateToken,
+  collaborationSchema,
+  validateRequest,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const { entrepreneurId, message } = req.body;
+      const { userId: investorId } = req.user!;
 
-    console.log(
-      "[DEBUG] POST /collaboration - from (investor):",
-      investorId,
-      "to (entrepreneur):",
-      entrepreneurId,
-    );
+      console.log(
+        "[DEBUG] POST /collaboration - from (investor):",
+        investorId,
+        "to (entrepreneur):",
+        entrepreneurId,
+      );
 
-    if (!entrepreneurId) {
-      console.log("[DEBUG] POST /collaboration - entrepreneurId is missing!");
-      return res.status(400).json({ message: "Entrepreneur ID is required" });
+      if (!entrepreneurId) {
+        console.log("[DEBUG] POST /collaboration - entrepreneurId is missing!");
+        return res.status(400).json({ message: "Entrepreneur ID is required" });
+      }
+
+      const newRequest = new CollaborationRequest({
+        id: `req${Date.now()}`,
+        investorId,
+        entrepreneurId,
+        message,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      });
+
+      console.log(
+        "[DEBUG] POST /collaboration - saving new request:",
+        newRequest.id,
+      );
+      await newRequest.save();
+
+      // Create notification for entrepreneur
+      const notification = new Notification({
+        id: `notif${Date.now()}`,
+        userId: entrepreneurId,
+        type: "collaboration_request",
+        title: "New Collaboration Request",
+        message: `An investor has sent you a collaboration request.`,
+        link: "/dashboard/entrepreneur",
+        isRead: false,
+      });
+      console.log(
+        "[DEBUG] POST /collaboration - sending notification to:",
+        entrepreneurId,
+      );
+      await notification.save();
+
+      res.status(201).json(newRequest);
+    } catch (error) {
+      console.error("[DEBUG] POST /collaboration - ERROR:", error);
+      res.status(500).json({ message: "Server error" });
     }
-
-    const newRequest = new CollaborationRequest({
-      id: `req${Date.now()}`,
-      investorId,
-      entrepreneurId,
-      message,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    });
-
-    console.log(
-      "[DEBUG] POST /collaboration - saving new request:",
-      newRequest.id,
-    );
-    await newRequest.save();
-
-    // Create notification for entrepreneur
-    const notification = new Notification({
-      id: `notif${Date.now()}`,
-      userId: entrepreneurId,
-      type: "collaboration_request",
-      title: "New Collaboration Request",
-      message: `An investor has sent you a collaboration request.`,
-      link: "/dashboard/entrepreneur",
-      isRead: false,
-    });
-    console.log(
-      "[DEBUG] POST /collaboration - sending notification to:",
-      entrepreneurId,
-    );
-    await notification.save();
-
-    res.status(201).json(newRequest);
-  } catch (error) {
-    console.error("[DEBUG] POST /collaboration - ERROR:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+  },
+);
 
 // Update request status
 router.put("/:id/status", authenticateToken, async (req: AuthRequest, res) => {

@@ -88,8 +88,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {transactions.map((transaction) => {
-                  const txKey =
-                    transaction.id || (transaction as any)._id || Math.random();
+                  const txKey = transaction.id || Math.random();
                   return (
                     <tr
                       key={txKey}
@@ -138,7 +137,13 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <Badge
-                          variant={getStatusColor(transaction.status) as any}
+                          variant={
+                            getStatusColor(transaction.status) as
+                              | "success"
+                              | "warning"
+                              | "error"
+                              | "gray"
+                          }
                           size="sm"
                         >
                           {transaction.status}

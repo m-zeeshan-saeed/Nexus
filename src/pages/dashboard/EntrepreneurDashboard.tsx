@@ -110,7 +110,7 @@ export const EntrepreneurDashboard: React.FC = () => {
       setTransactions([res.transaction, ...transactions]);
       toast.success(res.message);
       setIsDepositOpen(false);
-    } catch (error) {
+    } catch {
       toast.error("Deposit failed");
     } finally {
       setIsPaymentLoading(false);
@@ -125,7 +125,7 @@ export const EntrepreneurDashboard: React.FC = () => {
       setTransactions([res.transaction, ...transactions]);
       toast.success(res.message);
       setIsWithdrawOpen(false);
-    } catch (error) {
+    } catch {
       toast.error("Withdrawal failed");
     } finally {
       setIsPaymentLoading(false);
@@ -146,7 +146,7 @@ export const EntrepreneurDashboard: React.FC = () => {
       setTransactions([res.transaction, ...transactions]);
       toast.success(res.message);
       setIsTransferOpen(false);
-    } catch (error) {
+    } catch {
       toast.error("Transfer failed");
     } finally {
       setIsPaymentLoading(false);

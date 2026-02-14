@@ -17,7 +17,7 @@ export const CollaborationRequestCard: React.FC<
   CollaborationRequestCardProps
 > = ({ request, onStatusUpdate }) => {
   const navigate = useNavigate();
-  const investor = request.partner || (request as any).investor; // Support populated partner or fallback
+  const investor = request.partner; // Support populated partner
 
   if (!investor) {
     console.warn(

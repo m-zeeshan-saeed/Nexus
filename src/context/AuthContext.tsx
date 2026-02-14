@@ -91,13 +91,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     email: string,
     password: string,
     role: UserRole,
-  ): Promise<void> => {
+  ): Promise<{ requires2FA?: boolean; tempToken?: string } | void> => {
     setIsLoading(true);
     console.log("Attempting login for:", email, "Role:", role);
     try {
       const response = await api.post("/auth/login", { email, password });
       console.log("Login success:", response.data);
-      const { token, user: userData } = response.data;
+      const { token, user: userData, requires2FA, tempToken } = response.data;
+
+      if (requires2FA) {
+        toast.success("Verification code required to continue");
+        return { requires2FA, tempToken };
+      }
 
       if (userData.role !== role) {
         console.warn(
@@ -118,11 +123,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       toast.success("Successfully logged in!");
     } catch (error: unknown) {
       const err = error as {
-        response?: { data?: { message?: string } };
+        response?: {
+          data?: { message?: string; errors?: Array<{ msg: string }> };
+        };
         message?: string;
       };
-      const message =
+
+      let message =
         err.response?.data?.message || err.message || "Login failed";
+
+      if (
+        err.response?.data?.errors &&
+        Array.isArray(err.response.data.errors)
+      ) {
+        const detail = err.response.data.errors.map((e) => e.msg).join(". ");
+        message = `${message}: ${detail}`;
+      }
+
       console.error("Login failed:", message);
       toast.error(message);
       throw new Error(message);
@@ -240,11 +257,97 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       toast.success("Password updated successfully");
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      const message =
-        err.response?.data?.message || "Failed to update password";
+      const err = error as {
+        response?: {
+          data?: { message?: string; errors?: Array<{ msg: string }> };
+        };
+      };
+
+      let message = err.response?.data?.message || "Failed to update password";
+
+      if (
+        err.response?.data?.errors &&
+        Array.isArray(err.response.data.errors)
+      ) {
+        const detail = err.response.data.errors.map((e) => e.msg).join(". ");
+        message = `${message}: ${detail}`;
+      }
+
       toast.error(message);
       throw new Error(message);
+    }
+  };
+
+  // 2FA Setup
+  const setup2FA = async (): Promise<void> => {
+    try {
+      await api.post("/auth/2fa/setup");
+      toast.success("Verification code sent to your email");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      const message = err.response?.data?.message || "Failed to send 2FA code";
+      toast.error(message);
+      throw new Error(message);
+    }
+  };
+
+  // 2FA Enable
+  const enable2FA = async (otp: string): Promise<void> => {
+    try {
+      await api.post("/auth/2fa/enable", { otp });
+      const updatedUser = { ...user, isTwoFactorEnabled: true } as User;
+      setUser(updatedUser);
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+      toast.success("Two-factor authentication enabled");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      const message = err.response?.data?.message || "Failed to enable 2FA";
+      toast.error(message);
+      throw new Error(message);
+    }
+  };
+
+  // 2FA Disable
+  const disable2FA = async (): Promise<void> => {
+    try {
+      await api.post("/auth/2fa/disable");
+      const updatedUser = { ...user, isTwoFactorEnabled: false } as User;
+      setUser(updatedUser);
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+      toast.success("Two-factor authentication disabled");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      const message = err.response?.data?.message || "Failed to disable 2FA";
+      toast.error(message);
+      throw new Error(message);
+    }
+  };
+
+  // 2FA Validate Login
+  const validate2FALogin = async (
+    tempToken: string,
+    otp: string,
+  ): Promise<void> => {
+    setIsLoading(true);
+    try {
+      const response = await api.post("/auth/2fa/validate-login", {
+        tempToken,
+        otp,
+      });
+      const { token, user: userData } = response.data;
+
+      setUser(userData);
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      toast.success("Successfully logged in!");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      const message =
+        err.response?.data?.message || "Invalid verification code";
+      toast.error(message);
+      throw new Error(message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -257,6 +360,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     resetPassword,
     updateProfile,
     changePassword,
+    setup2FA,
+    enable2FA,
+    disable2FA,
+    validate2FALogin,
     isAuthenticated: !!user,
     isLoading,
   };

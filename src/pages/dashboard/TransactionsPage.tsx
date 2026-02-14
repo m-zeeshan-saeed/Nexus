@@ -33,7 +33,7 @@ export const TransactionsPage: React.FC = () => {
   };
 
   const filteredTransactions = transactions.filter((t) => {
-    const transactionId = t.id || (t as any)._id || "";
+    const transactionId = t.id || "";
     const matchesSearch =
       t.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       transactionId.toLowerCase().includes(searchQuery.toLowerCase());
@@ -88,7 +88,15 @@ export const TransactionsPage: React.FC = () => {
               <select
                 className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 value={filterType}
-                onChange={(e: any) => setFilterType(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setFilterType(
+                    e.target.value as
+                      | "all"
+                      | "deposit"
+                      | "withdraw"
+                      | "transfer",
+                  )
+                }
               >
                 <option value="all">All Types</option>
                 <option value="deposit">Deposits</option>
@@ -154,7 +162,7 @@ export const TransactionsPage: React.FC = () => {
                           {t.description}
                         </div>
                         <div className="text-xs text-gray-400 font-mono">
-                          {t.id || (t as any)._id}
+                          {t.id}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

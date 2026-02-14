@@ -56,7 +56,11 @@ router.put("/tickets/:id", authenticateToken, async (req: AuthRequest, res) => {
 
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const updates: any = {
+    const updates: Partial<{
+      status: string;
+      priority: string;
+      updatedAt: string;
+    }> = {
       updatedAt: new Date().toISOString(),
     };
 

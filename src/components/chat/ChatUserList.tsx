@@ -5,6 +5,7 @@ import { ChatConversation } from "../../types";
 import { Avatar } from "../ui/Avatar";
 import { Badge } from "../ui/Badge";
 import { useAuth } from "../../context/AuthContext";
+import { useSocket } from "../../context/SocketContext";
 
 interface ChatUserListProps {
   conversations: ChatConversation[];
@@ -15,6 +16,7 @@ export const ChatUserList: React.FC<ChatUserListProps> = ({
 }) => {
   const navigate = useNavigate();
   const { userId: activeUserId } = useParams<{ userId: string }>();
+  const { userStatuses } = useSocket();
   const { user: currentUser } = useAuth();
 
   if (!currentUser) return null;
@@ -38,6 +40,8 @@ export const ChatUserList: React.FC<ChatUserListProps> = ({
 
               const lastMessage = conversation.lastMessage;
               const isActive = activeUserId === otherUser.id;
+              const statusInfo = userStatuses[otherUser.id];
+              const status = statusInfo?.status || "offline";
 
               return (
                 <div
@@ -53,7 +57,7 @@ export const ChatUserList: React.FC<ChatUserListProps> = ({
                     src={otherUser.avatarUrl}
                     alt={otherUser.name}
                     size="md"
-                    status={otherUser.isOnline ? "online" : "offline"}
+                    status={status}
                     className="mr-3 flex-shrink-0"
                   />
 

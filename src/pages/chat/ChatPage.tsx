@@ -11,6 +11,9 @@ import { Message, ChatConversation, User } from "../../types";
 import { messageService } from "../../services/messageService";
 import api from "../../services/api";
 import { MessageCircle } from "lucide-react";
+import { VideoCallModal } from "../../components/chat/VideoCallModal";
+import { formatDistanceToNow } from "date-fns";
+import { useSocket } from "../../context/SocketContext";
 
 export const ChatPage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
@@ -19,7 +22,14 @@ export const ChatPage: React.FC = () => {
   const [newMessage, setNewMessage] = useState("");
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [chatPartner, setChatPartner] = useState<User | null>(null);
+  const [showVideoCall, setShowVideoCall] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{
+    roomId: string;
+    fromName: string;
+  } | null>(null);
+  const [callType, setCallType] = useState<"video" | "voice">("video");
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const { socket, userStatuses } = useSocket();
 
   useEffect(() => {
     const fetchConversations = async () => {
@@ -66,11 +76,49 @@ export const ChatPage: React.FC = () => {
     const interval = setInterval(fetchMessages, 3000); // Poll for new messages
     return () => clearInterval(interval);
   }, [currentUser, userId]);
+  useEffect(() => {
+    if (socket && currentUser) {
+      socket.on(
+        "offer",
+        (data: { from: string; offer: any; roomId: string }) => {
+          setIncomingCall({
+            roomId: data.roomId,
+            fromName: chatPartner?.name || "Incoming Call",
+          });
+        },
+      );
 
+      return () => {
+        socket.off("offer");
+      };
+    }
+  }, [socket, currentUser, userId]);
   useEffect(() => {
     // Scroll to bottom of messages
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const initiateVideoCall = () => {
+    if (userId && currentUser) {
+      setCallType("video");
+      setShowVideoCall(true);
+    }
+  };
+
+  const initiateVoiceCall = () => {
+    if (userId && currentUser) {
+      setCallType("voice");
+      setShowVideoCall(true);
+    }
+  };
+
+  const acceptCall = () => {
+    if (incomingCall) {
+      setShowVideoCall(true);
+      // Wait a bit for the modal to mount and register listeners
+      setIncomingCall(null);
+    }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,7 +158,7 @@ export const ChatPage: React.FC = () => {
                   src={chatPartner.avatarUrl}
                   alt={chatPartner.name}
                   size="md"
-                  status={chatPartner.isOnline ? "online" : "offline"}
+                  status={userStatuses[chatPartner.id]?.status || "offline"}
                   className="mr-3"
                 />
 
@@ -119,7 +167,12 @@ export const ChatPage: React.FC = () => {
                     {chatPartner.name}
                   </h2>
                   <p className="text-sm text-gray-500">
-                    {chatPartner.isOnline ? "Online" : "Last seen recently"}
+                    {userStatuses[chatPartner.id]?.status === "online"
+                      ? "Online"
+                      : userStatuses[chatPartner.id]?.status ===
+                          "recently_active"
+                        ? `Recently active (${formatDistanceToNow(new Date(userStatuses[chatPartner.id].lastSeen), { addSuffix: true })})`
+                        : `Active ${formatDistanceToNow(new Date(userStatuses[chatPartner.id]?.lastSeen || chatPartner.createdAt), { addSuffix: true })}`}
                   </p>
                 </div>
               </div>
@@ -130,6 +183,7 @@ export const ChatPage: React.FC = () => {
                   size="sm"
                   className="rounded-full p-2"
                   aria-label="Voice call"
+                  onClick={initiateVoiceCall}
                 >
                   <Phone size={18} />
                 </Button>
@@ -139,6 +193,7 @@ export const ChatPage: React.FC = () => {
                   size="sm"
                   className="rounded-full p-2"
                   aria-label="Video call"
+                  onClick={initiateVideoCall}
                 >
                   <Video size={18} />
                 </Button>
@@ -235,6 +290,40 @@ export const ChatPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Video Call Modal */}
+      {showVideoCall && userId && currentUser && (
+        <VideoCallModal
+          roomId={incomingCall?.roomId || `call-${currentUser.id}-${userId}`}
+          targetUserId={userId}
+          onClose={() => setShowVideoCall(false)}
+          isIncoming={!!incomingCall}
+          callType={callType}
+        />
+      )}
+
+      {/* Incoming Call Notification */}
+      {incomingCall && (
+        <div className="fixed top-4 right-4 z-50 bg-white shadow-2xl border border-gray-200 rounded-xl p-4 flex items-center space-x-4 animate-bounce">
+          <Avatar src="" alt={incomingCall.fromName} size="md" />
+          <div>
+            <p className="font-bold">{incomingCall.fromName}</p>
+            <p className="text-sm text-gray-500">Video calling you...</p>
+          </div>
+          <div className="flex space-x-2">
+            <Button size="sm" onClick={acceptCall}>
+              Accept
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIncomingCall(null)}
+            >
+              Decline
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

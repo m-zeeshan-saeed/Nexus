@@ -12,6 +12,7 @@ import {
   Settings,
   HelpCircle,
   CalendarDays,
+  CreditCard,
 } from "lucide-react";
 import { notificationService } from "../../services/notificationService";
 import { messageService } from "../../services/messageService";
@@ -110,6 +111,11 @@ export const Sidebar: React.FC = () => {
     },
     { to: "/requests", icon: <Users size={20} />, text: "Requests" },
     { to: "/documents", icon: <FileText size={20} />, text: "Documents" },
+    {
+      to: "/transactions",
+      icon: <CreditCard size={20} />,
+      text: "Transactions",
+    },
   ];
 
   const investorItems = [
@@ -139,6 +145,11 @@ export const Sidebar: React.FC = () => {
     },
     { to: "/requests", icon: <Users size={20} />, text: "Requests" },
     { to: "/deals", icon: <FileText size={20} />, text: "Deals" },
+    {
+      to: "/transactions",
+      icon: <CreditCard size={20} />,
+      text: "Transactions",
+    },
   ];
 
   const sidebarItems =

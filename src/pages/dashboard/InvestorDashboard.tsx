@@ -14,21 +14,38 @@ import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Badge } from "../../components/ui/Badge";
 import { EntrepreneurCard } from "../../components/entrepreneur/EntrepreneurCard";
+import { WalletCard } from "../../components/dashboard/WalletCard";
+import { TransactionHistory } from "../../components/dashboard/TransactionHistory";
+import {
+  DepositModal,
+  WithdrawModal,
+  TransferModal,
+} from "../../components/dashboard/PaymentModals";
 import { useAuth } from "../../context/AuthContext";
-import { Entrepreneur, Meeting } from "../../types";
+import { Entrepreneur, Meeting, Transaction } from "../../types";
 import api from "../../services/api";
 import dashboardService, {
   DashboardSummary,
 } from "../../services/dashboardService";
+import paymentService from "../../services/paymentService";
 import { format, parseISO } from "date-fns";
+import toast from "react-hot-toast";
 
 export const InvestorDashboard: React.FC = () => {
   const { user } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [entrepreneurs, setEntrepreneurs] = useState<Entrepreneur[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [balance, setBalance] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+
+  // Modal states
+  const [isDepositOpen, setIsDepositOpen] = useState(false);
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,6 +59,14 @@ export const InvestorDashboard: React.FC = () => {
           // Fetch entrepreneurs for directory from API
           const entrepreneursRes = await api.get("/directory/entrepreneurs");
           setEntrepreneurs(entrepreneursRes.data);
+
+          // Fetch wallet data
+          const [balanceData, transactionsData] = await Promise.all([
+            paymentService.getBalance(),
+            paymentService.getTransactions(),
+          ]);
+          setBalance(balanceData);
+          setTransactions(transactionsData);
         } catch (error) {
           console.error("Failed to fetch investor dashboard data:", error);
         } finally {
@@ -50,7 +75,60 @@ export const InvestorDashboard: React.FC = () => {
       }
     };
     fetchData();
+    window.addEventListener("payment-updated", fetchData);
+    return () => window.removeEventListener("payment-updated", fetchData);
   }, [user]);
+
+  const handleDeposit = async (amount: number, method?: string) => {
+    setIsPaymentLoading(true);
+    try {
+      const res = await paymentService.deposit(amount, method);
+      setBalance(res.balance);
+      setTransactions([res.transaction, ...transactions]);
+      toast.success(res.message);
+      setIsDepositOpen(false);
+    } catch (error) {
+      toast.error("Deposit failed");
+    } finally {
+      setIsPaymentLoading(false);
+    }
+  };
+
+  const handleWithdraw = async (amount: number, method?: string) => {
+    setIsPaymentLoading(true);
+    try {
+      const res = await paymentService.withdraw(amount, method);
+      setBalance(res.balance);
+      setTransactions([res.transaction, ...transactions]);
+      toast.success(res.message);
+      setIsWithdrawOpen(false);
+    } catch (error) {
+      toast.error("Withdrawal failed");
+    } finally {
+      setIsPaymentLoading(false);
+    }
+  };
+
+  const handleTransfer = async (amount: number, data?: string) => {
+    try {
+      if (!data) return;
+      setIsPaymentLoading(true);
+      const { recipientId, description } = JSON.parse(data);
+      const res = await paymentService.transfer(
+        recipientId,
+        amount,
+        description,
+      );
+      setBalance(res.balance);
+      setTransactions([res.transaction, ...transactions]);
+      toast.success(res.message);
+      setIsTransferOpen(false);
+    } catch (error) {
+      toast.error("Transfer failed");
+    } finally {
+      setIsPaymentLoading(false);
+    }
+  };
 
   if (!user) return null;
 
@@ -180,6 +258,31 @@ export const InvestorDashboard: React.FC = () => {
             </div>
           </CardBody>
         </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1">
+          <WalletCard
+            balance={balance}
+            onDeposit={() => setIsDepositOpen(true)}
+            onWithdraw={() => setIsWithdrawOpen(true)}
+            onTransfer={() => setIsTransferOpen(true)}
+          />
+        </div>
+        <div className="lg:col-span-2">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-medium text-gray-900">
+              Recent Transactions
+            </h2>
+            <Link
+              to="/transactions"
+              className="text-sm font-medium text-primary-600 hover:text-primary-500"
+            >
+              View All
+            </Link>
+          </div>
+          <TransactionHistory transactions={transactions} loading={isLoading} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -333,6 +436,27 @@ export const InvestorDashboard: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      <DepositModal
+        isOpen={isDepositOpen}
+        onClose={() => setIsDepositOpen(false)}
+        onConfirm={handleDeposit}
+        isLoading={isPaymentLoading}
+      />
+      <WithdrawModal
+        isOpen={isWithdrawOpen}
+        onClose={() => setIsWithdrawOpen(false)}
+        onConfirm={handleWithdraw}
+        balance={balance}
+        isLoading={isPaymentLoading}
+      />
+      <TransferModal
+        isOpen={isTransferOpen}
+        onClose={() => setIsTransferOpen(false)}
+        onConfirm={handleTransfer}
+        balance={balance}
+        isLoading={isPaymentLoading}
+      />
     </div>
   );
 };

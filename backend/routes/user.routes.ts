@@ -1,5 +1,6 @@
 import express from "express";
 import User from "../models/User.model";
+import CollaborationRequest from "../models/CollaborationRequest.model";
 import { authenticateToken, AuthRequest } from "../middlewares/auth.middleware";
 import bcrypt from "bcryptjs";
 
@@ -17,6 +18,75 @@ router.get("/profile", authenticateToken, async (req: AuthRequest, res) => {
     res.json(user);
   } catch (error) {
     console.error("Fetch profile error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Search users by name, email, or ID
+router.get("/search", authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { query } = req.query;
+    if (!query || typeof query !== "string") {
+      return res.status(400).json({ message: "Search query is required" });
+    }
+
+    // Search for users by direct ID match or case-insensitive name/email match
+    // Filter out the current user from results
+    const users = await User.find({
+      $and: [
+        { id: { $ne: req.user?.userId } },
+        {
+          $or: [
+            { id: query },
+            { name: { $regex: query, $options: "i" } },
+            { email: { $regex: query, $options: "i" } },
+          ],
+        },
+      ],
+    })
+      .select("id name email role")
+      .limit(10);
+
+    res.json(users);
+  } catch (error) {
+    console.error("User search error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Get connected users (accepted collaborations)
+router.get("/connections", authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { userId } = req.user!;
+    console.log("[DEBUG] /connections - fetching for user:", userId);
+
+    const acceptedRequests = await CollaborationRequest.find({
+      status: "accepted",
+      $or: [{ investorId: userId }, { entrepreneurId: userId }],
+    });
+
+    console.log(
+      "[DEBUG] /connections - accepted requests count:",
+      acceptedRequests.length,
+    );
+
+    const partnerIds = acceptedRequests.map((req: any) =>
+      req.investorId === userId ? req.entrepreneurId : req.investorId,
+    );
+
+    console.log("[DEBUG] /connections - unique partner IDs:", [
+      ...new Set(partnerIds),
+    ]);
+
+    const connections = await User.find({ id: { $in: partnerIds } })
+      .select("id name email role avatarUrl startupName industry")
+      .lean();
+
+    console.log("[DEBUG] /connections - users found:", connections.length);
+
+    res.json(connections);
+  } catch (error) {
+    console.error("Fetch connections error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

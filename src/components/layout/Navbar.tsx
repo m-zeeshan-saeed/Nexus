@@ -1,57 +1,72 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Menu, X, Bell, MessageCircle, User, LogOut, Building2, CircleDollarSign } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { Avatar } from '../ui/Avatar';
-import { Button } from '../ui/Button';
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import {
+  Menu,
+  X,
+  Bell,
+  MessageCircle,
+  User,
+  LogOut,
+  Building2,
+  CircleDollarSign,
+} from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { useSocket } from "../../context/SocketContext";
+import { Avatar } from "../ui/Avatar";
+import { Button } from "../ui/Button";
 
 export const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, logout } = useAuth();
+  const { userStatuses } = useSocket();
   const navigate = useNavigate();
-  
+
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
-  
+
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
-  
+
   // User dashboard route based on role
-  const dashboardRoute = user?.role === 'entrepreneur' 
-    ? '/dashboard/entrepreneur' 
-    : '/dashboard/investor';
-  
+  const dashboardRoute =
+    user?.role === "entrepreneur"
+      ? "/dashboard/entrepreneur"
+      : "/dashboard/investor";
+
   // User profile route based on role and ID
-  const profileRoute = user 
-    ? `/profile/${user.role}/${user.id}` 
-    : '/login';
-  
+  const profileRoute = user ? `/profile/${user.role}/${user.id}` : "/login";
+
   const navLinks = [
     {
-      icon: user?.role === 'entrepreneur' ? <Building2 size={18} /> : <CircleDollarSign size={18} />,
-      text: 'Dashboard',
+      icon:
+        user?.role === "entrepreneur" ? (
+          <Building2 size={18} />
+        ) : (
+          <CircleDollarSign size={18} />
+        ),
+      text: "Dashboard",
       path: dashboardRoute,
     },
     {
       icon: <MessageCircle size={18} />,
-      text: 'Messages',
-      path: user ? '/messages' : '/login',
+      text: "Messages",
+      path: user ? "/messages" : "/login",
     },
     {
       icon: <Bell size={18} />,
-      text: 'Notifications',
-      path: user ? '/notifications' : '/login',
+      text: "Notifications",
+      path: user ? "/notifications" : "/login",
     },
     {
       icon: <User size={18} />,
-      text: 'Profile',
+      text: "Profile",
       path: profileRoute,
-    }
+    },
   ];
-  
+
   return (
     <nav className="bg-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -60,15 +75,36 @@ export const Navbar: React.FC = () => {
           <div className="flex-shrink-0 flex items-center">
             <Link to="/" className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-primary-600 rounded-md flex items-center justify-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white">
-                  <path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M16 21V5C16 3.89543 15.1046 3 14 3H10C8.89543 3 8 3.89543 8 5V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="text-white"
+                >
+                  <path
+                    d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M16 21V5C16 3.89543 15.1046 3 14 3H10C8.89543 3 8 3.89543 8 5V21"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </div>
-              <span className="text-lg font-bold text-gray-900">Business Nexus</span>
+              <span className="text-lg font-bold text-gray-900">
+                Business Nexus
+              </span>
             </Link>
           </div>
-          
+
           {/* Desktop navigation */}
           <div className="hidden md:flex md:items-center md:ml-6">
             {user ? (
@@ -83,23 +119,28 @@ export const Navbar: React.FC = () => {
                     {link.text}
                   </Link>
                 ))}
-                
-                <Button 
+
+                <Button
                   variant="ghost"
                   onClick={handleLogout}
                   leftIcon={<LogOut size={18} />}
                 >
                   Logout
                 </Button>
-                
-                <Link to={profileRoute} className="flex items-center space-x-2 ml-2">
+
+                <Link
+                  to={profileRoute}
+                  className="flex items-center space-x-2 ml-2"
+                >
                   <Avatar
                     src={user.avatarUrl}
                     alt={user.name}
                     size="sm"
-                    status={user.isOnline ? 'online' : 'offline'}
+                    status={userStatuses[user.id]?.status || "offline"}
                   />
-                  <span className="text-sm font-medium text-gray-700">{user.name}</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {user.name}
+                  </span>
                 </Link>
               </div>
             ) : (
@@ -113,7 +154,7 @@ export const Navbar: React.FC = () => {
               </div>
             )}
           </div>
-          
+
           {/* Mobile menu button */}
           <div className="md:hidden flex items-center">
             <button
@@ -129,7 +170,7 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Mobile menu */}
       {isMenuOpen && (
         <div className="md:hidden bg-white border-b border-gray-200 animate-fade-in">
@@ -141,14 +182,18 @@ export const Navbar: React.FC = () => {
                     src={user.avatarUrl}
                     alt={user.name}
                     size="sm"
-                    status={user.isOnline ? 'online' : 'offline'}
+                    status={userStatuses[user.id]?.status || "offline"}
                   />
                   <div>
-                    <p className="text-sm font-medium text-gray-800">{user.name}</p>
-                    <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+                    <p className="text-sm font-medium text-gray-800">
+                      {user.name}
+                    </p>
+                    <p className="text-xs text-gray-500 capitalize">
+                      {user.role}
+                    </p>
                   </div>
                 </div>
-                
+
                 <div className="border-t border-gray-200 pt-2">
                   {navLinks.map((link, index) => (
                     <Link
@@ -161,7 +206,7 @@ export const Navbar: React.FC = () => {
                       {link.text}
                     </Link>
                   ))}
-                  
+
                   <button
                     onClick={() => {
                       handleLogout();
@@ -176,15 +221,17 @@ export const Navbar: React.FC = () => {
               </>
             ) : (
               <div className="flex flex-col space-y-2 px-3 py-2">
-                <Link 
-                  to="/login" 
+                <Link
+                  to="/login"
                   className="w-full"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <Button variant="outline" fullWidth>Log in</Button>
+                  <Button variant="outline" fullWidth>
+                    Log in
+                  </Button>
                 </Link>
-                <Link 
-                  to="/register" 
+                <Link
+                  to="/register"
                   className="w-full"
                   onClick={() => setIsMenuOpen(false)}
                 >

@@ -14,9 +14,11 @@ import { Badge } from "../../components/ui/Badge";
 import { useAuth } from "../../context/AuthContext";
 import { Investor } from "../../types";
 import api from "../../services/api";
+import { useSocket } from "../../context/SocketContext";
 
 export const InvestorProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { userStatuses } = useSocket();
   const { user: currentUser } = useAuth();
   const [investor, setInvestor] = useState<Investor | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,7 +78,7 @@ export const InvestorProfile: React.FC = () => {
               src={investor.avatarUrl}
               alt={investor.name}
               size="xl"
-              status={investor.isOnline ? "online" : "offline"}
+              status={userStatuses[investor.id]?.status || "offline"}
               className="mx-auto sm:mx-0"
             />
 

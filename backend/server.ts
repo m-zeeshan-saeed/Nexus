@@ -2,6 +2,9 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
+import { createServer } from "http";
+import { Server } from "socket.io";
+import { setupSocketHandlers } from "./socket.handler.js";
 
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
@@ -14,6 +17,7 @@ import notificationRoutes from "./routes/notification.routes";
 import documentRoutes from "./routes/document.routes";
 import dealRoutes from "./routes/deal.routes";
 import supportRoutes from "./routes/support.routes";
+import paymentRoutes from "./routes/payment.routes";
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -46,12 +50,29 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/deals", dealRoutes);
 app.use("/api/support", supportRoutes);
+app.use("/api/payments", paymentRoutes);
 
 app.get("/", (req, res) => {
   res.send("API is running...");
 });
 
+// Create HTTP server
+const httpServer = createServer(app);
+
+// Initialize Socket.IO
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*", // Adjust this for production
+    methods: ["GET", "POST"],
+  },
+});
+
+app.set("io", io);
+
+// Setup socket handlers
+setupSocketHandlers(io);
+
 // Start the server
-app.listen(port, () => {
+httpServer.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });

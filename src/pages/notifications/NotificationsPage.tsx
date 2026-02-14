@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   Bell,
@@ -22,7 +22,7 @@ export const NotificationsPage: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (user) {
       try {
         const data = await notificationService.getNotifications();
@@ -33,13 +33,13 @@ export const NotificationsPage: React.FC = () => {
         setIsLoading(false);
       }
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 10000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [fetchNotifications]);
 
   const handleMarkAsRead = async (id: string) => {
     try {

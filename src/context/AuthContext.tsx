@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { User, UserRole, AuthContextType } from "../types";
 import api from "../services/api";
@@ -49,6 +50,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     initAuth();
   }, []);
+
+  // Listen for storage changes in other tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === TOKEN_STORAGE_KEY || e.key === USER_STORAGE_KEY) {
+        console.log(
+          "Storage change detected in another tab, syncing auth state...",
+        );
+        const storedUser = localStorage.getItem(USER_STORAGE_KEY);
+        const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+
+        if (!token || !storedUser) {
+          // If token or user removed in another tab, logout here too
+          console.log("Auth cleared in another tab, logging out...");
+          setUser(null);
+        } else {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            // Only update if it's actually different to avoid unnecessary re-renders
+            if (JSON.stringify(parsedUser) !== JSON.stringify(user)) {
+              console.log(
+                "User data changed in another tab, updating state...",
+              );
+              setUser(parsedUser);
+            }
+          } catch (error) {
+            console.error("Failed to parse synced user data:", error);
+          }
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [user]);
 
   // Login function
   const login = async (
@@ -228,10 +264,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = (): AuthContextType => {
+export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-};
+}

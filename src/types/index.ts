@@ -10,6 +10,7 @@ export interface User {
   bio: string;
   location?: string;
   isOnline?: boolean;
+  walletBalance?: number;
   createdAt: string;
 
   // Entrepreneur fields
@@ -79,6 +80,14 @@ export interface CollaborationRequest {
   message: string;
   status: "pending" | "accepted" | "rejected";
   createdAt: string;
+  partner?: {
+    id: string;
+    name: string;
+    email: string;
+    avatarUrl: string;
+    role: string;
+    isOnline?: boolean;
+  };
 }
 
 export interface Document {
@@ -156,6 +165,17 @@ export interface SupportTicket {
   priority: "low" | "medium" | "high";
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  type: "deposit" | "withdraw" | "transfer";
+  amount: number;
+  status: "pending" | "completed" | "failed";
+  description: string;
+  recipientId?: string;
+  createdAt: string;
 }
 
 export interface AuthContextType {

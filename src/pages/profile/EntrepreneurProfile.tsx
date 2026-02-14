@@ -12,6 +12,7 @@ import {
   Send,
   CalendarDays,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { ScheduleMeetingModal } from "../../components/meetings/ScheduleMeetingModal";
 import { Avatar } from "../../components/ui/Avatar";
 import { Button } from "../../components/ui/Button";
@@ -20,9 +21,11 @@ import { Badge } from "../../components/ui/Badge";
 import { useAuth } from "../../context/AuthContext";
 import { Entrepreneur, CollaborationRequest } from "../../types";
 import api from "../../services/api";
+import { useSocket } from "../../context/SocketContext";
 
 export const EntrepreneurProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { userStatuses } = useSocket();
   const { user: currentUser } = useAuth();
   const [entrepreneur, setEntrepreneur] = useState<Entrepreneur | null>(null);
   const [collaborationRequests, setCollaborationRequests] = useState<
@@ -47,6 +50,7 @@ export const EntrepreneurProfile: React.FC = () => {
         }
       } catch (error) {
         console.error("Failed to fetch entrepreneur profile:", error);
+        toast.error("Failed to load profile data. Please try again.");
       } finally {
         setIsLoading(false);
       }
@@ -97,19 +101,54 @@ export const EntrepreneurProfile: React.FC = () => {
   const isCollaborationAccepted = collaborationRequest?.status === "accepted";
 
   const handleSendRequest = async () => {
-    if (isInvestor && currentUser && id) {
-      try {
-        await api.post("/collaboration", {
-          entrepreneurId: id,
-          message: `I'm interested in learning more about ${entrepreneur.startupName} and would like to explore potential investment opportunities.`,
-        });
+    console.log("[DEBUG] handleSendRequest called", {
+      isInvestor,
+      currentUserRole: currentUser?.role,
+      targetId: id,
+    });
 
-        // Refresh collaboration requests
-        const requestsRes = await api.get("/collaboration");
-        setCollaborationRequests(requestsRes.data);
-      } catch (error) {
-        console.error("Failed to send collaboration request:", error);
-      }
+    if (!currentUser) {
+      toast.error("Please log in to request collaboration");
+      return;
+    }
+
+    if (!isInvestor) {
+      toast.error(
+        "Only investors can request collaboration with entrepreneurs",
+      );
+      return;
+    }
+
+    if (!id) {
+      toast.error("Invalid entrepreneur profile");
+      return;
+    }
+
+    try {
+      const loadingToast = toast.loading("Sending request...");
+      console.log("[DEBUG] POST /collaboration payload:", {
+        entrepreneurId: id,
+      });
+
+      const res = await api.post("/collaboration", {
+        entrepreneurId: id,
+        message: `I'm interested in learning more about ${entrepreneur.startupName} and would like to explore potential investment opportunities.`,
+      });
+
+      console.log("[DEBUG] POST /collaboration response:", res.data);
+      toast.success("Collaboration request sent!", { id: loadingToast });
+
+      // Refresh collaboration requests
+      const requestsRes = await api.get("/collaboration");
+      console.log(
+        "[DEBUG] GET /collaboration refreshed count:",
+        requestsRes.data.length,
+      );
+      setCollaborationRequests(requestsRes.data);
+    } catch (error: any) {
+      console.error("[DEBUG] Collaboration request failed:", error);
+      const message = error.response?.data?.message || "Failed to send request";
+      toast.error(message);
     }
   };
 
@@ -123,7 +162,7 @@ export const EntrepreneurProfile: React.FC = () => {
               src={entrepreneur.avatarUrl}
               alt={entrepreneur.name}
               size="xl"
-              status={entrepreneur.isOnline ? "online" : "offline"}
+              status={userStatuses[entrepreneur.id]?.status || "offline"}
               className="mx-auto sm:mx-0"
             />
 

@@ -13,7 +13,7 @@ import {
 import { Card, CardHeader, CardBody } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
-import { Badge } from "../../components/ui/Badge";
+import { Badge, BadgeVariant } from "../../components/ui/Badge";
 import { useAuth } from "../../context/AuthContext";
 import { SupportTicket } from "../../types";
 import supportService from "../../services/supportService";
@@ -57,7 +57,6 @@ export const HelpPage: React.FC = () => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [isLoadingTickets, setIsLoadingTickets] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -85,14 +84,11 @@ export const HelpPage: React.FC = () => {
   }, [user]);
 
   const fetchTickets = async () => {
-    setIsLoadingTickets(true);
     try {
       const data = await supportService.getTickets();
       setTickets(data);
     } catch (error) {
       console.error("Failed to fetch tickets:", error);
-    } finally {
-      setIsLoadingTickets(false);
     }
   };
 
@@ -279,7 +275,9 @@ export const HelpPage: React.FC = () => {
                           {ticket.subject}
                         </h3>
                         <Badge
-                          variant={getStatusColor(ticket.status) as any}
+                          variant={
+                            getStatusColor(ticket.status) as BadgeVariant
+                          }
                           size="sm"
                           rounded
                         >

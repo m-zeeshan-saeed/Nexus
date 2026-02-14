@@ -1,5 +1,6 @@
 import express from "express";
 import CollaborationRequest from "../models/CollaborationRequest.model";
+import User from "../models/User.model";
 import Notification from "../models/Notification.model";
 import { authenticateToken, AuthRequest } from "../middlewares/auth.middleware";
 
@@ -17,10 +18,28 @@ router.get("/", authenticateToken, async (req: AuthRequest, res) => {
       query = { investorId: userId };
     }
 
-    const requests = await CollaborationRequest.find(query).sort({
-      createdAt: -1,
-    });
-    res.json(requests);
+    const requests = await CollaborationRequest.find(query)
+      .sort({
+        createdAt: -1,
+      })
+      .lean();
+
+    // Fetch user details for each request
+    const populatedRequests = await Promise.all(
+      requests.map(async (request: any) => {
+        const partnerId =
+          role === "entrepreneur" ? request.investorId : request.entrepreneurId;
+        const partner = await User.findOne({ id: partnerId })
+          .select("id name email avatarUrl role isOnline")
+          .lean();
+        return {
+          ...request,
+          partner,
+        };
+      }),
+    );
+
+    res.json(populatedRequests);
   } catch (error) {
     console.error("Fetch requests error:", error);
     res.status(500).json({ message: "Server error" });
@@ -33,6 +52,18 @@ router.post("/", authenticateToken, async (req: AuthRequest, res) => {
     const { entrepreneurId, message } = req.body;
     const { userId: investorId } = req.user!;
 
+    console.log(
+      "[DEBUG] POST /collaboration - from (investor):",
+      investorId,
+      "to (entrepreneur):",
+      entrepreneurId,
+    );
+
+    if (!entrepreneurId) {
+      console.log("[DEBUG] POST /collaboration - entrepreneurId is missing!");
+      return res.status(400).json({ message: "Entrepreneur ID is required" });
+    }
+
     const newRequest = new CollaborationRequest({
       id: `req${Date.now()}`,
       investorId,
@@ -42,6 +73,10 @@ router.post("/", authenticateToken, async (req: AuthRequest, res) => {
       createdAt: new Date().toISOString(),
     });
 
+    console.log(
+      "[DEBUG] POST /collaboration - saving new request:",
+      newRequest.id,
+    );
     await newRequest.save();
 
     // Create notification for entrepreneur
@@ -54,11 +89,15 @@ router.post("/", authenticateToken, async (req: AuthRequest, res) => {
       link: "/dashboard/entrepreneur",
       isRead: false,
     });
+    console.log(
+      "[DEBUG] POST /collaboration - sending notification to:",
+      entrepreneurId,
+    );
     await notification.save();
 
     res.status(201).json(newRequest);
   } catch (error) {
-    console.error("Create request error:", error);
+    console.error("[DEBUG] POST /collaboration - ERROR:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

@@ -17,6 +17,7 @@ export interface IUserDocument extends Omit<User, "id">, Document {
   totalInvestments?: number;
   minimumInvestment?: string;
   maximumInvestment?: string;
+  walletBalance: number;
 }
 
 const UserSchema: Schema = new Schema(
@@ -47,6 +48,7 @@ const UserSchema: Schema = new Schema(
     totalInvestments: { type: Number },
     minimumInvestment: { type: String },
     maximumInvestment: { type: String },
+    walletBalance: { type: Number, default: 0 },
   },
   {
     timestamps: false, // Using custom createdAt from mock data

@@ -29,6 +29,7 @@ export const ChatPage: React.FC = () => {
   } | null>(null);
   const [callType, setCallType] = useState<"video" | "voice">("video");
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const isAtBottom = useRef(true);
   const { socket, userStatuses } = useSocket();
 
   useEffect(() => {
@@ -93,10 +94,22 @@ export const ChatPage: React.FC = () => {
       };
     }
   }, [socket, currentUser, userId, chatPartner?.name]);
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const isBottom = scrollHeight - scrollTop - clientHeight < 50;
+    isAtBottom.current = isBottom;
+  };
+
   useEffect(() => {
-    // Scroll to bottom of messages
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    // Scroll to bottom only if user is already at bottom or if it's a new message from current user
+    const lastMessage = messages[messages.length - 1];
+    if (
+      lastMessage &&
+      (isAtBottom.current || lastMessage.senderId === currentUser?.id)
+    ) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, currentUser]);
 
   const initiateVideoCall = () => {
     if (userId && currentUser) {
@@ -210,7 +223,10 @@ export const ChatPage: React.FC = () => {
             </div>
 
             {/* Messages container */}
-            <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
+            <div
+              className="flex-1 p-4 overflow-y-auto bg-gray-50"
+              onScroll={handleScroll}
+            >
               {messages.length > 0 ? (
                 <div className="space-y-4">
                   {messages.map((message) => {

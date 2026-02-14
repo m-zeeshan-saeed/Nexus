@@ -38,10 +38,12 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (user) {
-      const socketUrl = import.meta.env.VITE_API_URL
-        ? import.meta.env.VITE_API_URL.replace("/api", "")
-        : "http://localhost:3001";
-      const newSocket = io(socketUrl);
+      const socketUrl =
+        import.meta.env.VITE_SOCKET_URL || "http://localhost:3001";
+      const newSocket = io(socketUrl, {
+        transports: ["websocket"],
+        withCredentials: true,
+      });
       setSocket(newSocket);
 
       newSocket.on("get-online-users", (users: string[]) => {

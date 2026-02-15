@@ -312,38 +312,64 @@ export const ChatPage: React.FC = () => {
                     conversation.partner?.id &&
                     navigate(`/chat/${conversation.partner.id}`)
                   }
-                  className={`flex items-center p-3 cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-100 ${
+                  className={`flex flex-row items-center p-4 cursor-pointer transition-all duration-200 border-b border-gray-100 ${
                     userId === conversation.partner?.id
-                      ? "bg-primary-50 border-l-4 border-primary-600"
-                      : "border-l-4 border-transparent"
+                      ? "bg-blue-50/60 border-l-4 border-l-primary-600 shadow-sm"
+                      : "border-l-4 border-l-transparent hover:bg-gray-50"
                   }`}
                 >
-                  <Avatar
-                    src={conversation.partner?.avatarUrl || ""}
-                    alt={conversation.partner?.name || "User"}
-                    size="lg"
-                    status={
-                      userStatuses[conversation.partner?.id || ""]?.status ||
-                      "offline"
-                    }
-                    className="mr-3"
-                  />
-                  <div className="flex-1 min-w-0">
+                  <div className="relative">
+                    <Avatar
+                      src={conversation.partner?.avatarUrl || ""}
+                      alt={conversation.partner?.name || "User"}
+                      size="lg"
+                    />
+                    {/* Online Status Indicator */}
+                    {userStatuses[conversation.partner?.id || ""]?.status ===
+                      "online" && (
+                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></span>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0 ml-4">
                     <div className="flex justify-between items-baseline mb-1">
-                      <h3 className="text-base font-normal text-gray-900 truncate">
+                      <h3
+                        className={`text-sm font-semibold truncate ${
+                          userId === conversation.partner?.id
+                            ? "text-primary-700"
+                            : "text-gray-900"
+                        }`}
+                      >
                         {conversation.partner?.name || "Unknown User"}
                       </h3>
                       {conversation.updatedAt &&
                         !isNaN(new Date(conversation.updatedAt).getTime()) && (
-                          <span className="text-xs text-gray-500">
+                          <span
+                            className={`text-xs ${
+                              userId === conversation.partner?.id
+                                ? "text-primary-500 font-medium"
+                                : "text-gray-400"
+                            }`}
+                          >
                             {format(new Date(conversation.updatedAt), "HH:mm")}
                           </span>
                         )}
                     </div>
                     <div className="flex justify-between items-center">
-                      <p className="text-sm text-gray-500 truncate pr-2">
-                        {conversation.lastMessage?.content}
+                      <p
+                        className={`text-sm truncate pr-2 ${
+                          conversation.unreadCount > 0
+                            ? "font-semibold text-gray-800"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        {conversation.lastMessage?.content || "No messages yet"}
                       </p>
+                      {conversation.unreadCount > 0 && (
+                        <span className="bg-primary-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                          {conversation.unreadCount}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -58,6 +58,7 @@ export interface Message {
   receiverId: string;
   content: string;
   timestamp: string;
+  createdAt: string;
   isRead: boolean;
 }
 
@@ -71,6 +72,8 @@ export interface ChatConversation {
     avatarUrl: string;
     isOnline: boolean;
   };
+  lastMessageDate?: string;
+  unreadCount: number;
   updatedAt: string;
 }
 

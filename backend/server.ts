@@ -26,11 +26,6 @@ const port = process.env.PORT || 3001;
 const MONGO_URL = process.env.MONGODB_URL;
 
 // Middleware
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "https://business-nexus.vercel.app", // Example production domain
-];
 
 app.use(
   cors({

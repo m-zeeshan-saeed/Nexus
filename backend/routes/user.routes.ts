@@ -70,26 +70,24 @@ router.get(
   async (req: AuthRequest, res: Response) => {
     try {
       const { query } = req.query;
-      if (!query || typeof query !== "string") {
-        return res.status(400).json({ message: "Search query is required" });
+      const searchQuery = (query as string) || "";
+
+      // Build search criteria
+      const searchCriteria: Record<string, unknown> = {
+        id: { $ne: req.user?.userId }, // Exclude current user
+      };
+
+      if (searchQuery.trim()) {
+        searchCriteria.$or = [
+          { id: searchQuery },
+          { name: { $regex: searchQuery, $options: "i" } },
+          { email: { $regex: searchQuery, $options: "i" } },
+        ];
       }
 
-      // Search for users by direct ID match or case-insensitive name/email match
-      // Filter out the current user from results
-      const users = await User.find({
-        $and: [
-          { id: { $ne: req.user?.userId } },
-          {
-            $or: [
-              { id: query },
-              { name: { $regex: query, $options: "i" } },
-              { email: { $regex: query, $options: "i" } },
-            ],
-          },
-        ],
-      })
-        .select("id name email role")
-        .limit(10);
+      const users = await User.find(searchCriteria)
+        .select("id name email role avatarUrl")
+        .limit(20);
 
       res.json(users);
     } catch (error) {
